@@ -128,7 +128,7 @@ fn get_infos(root: &Path) -> Vec<AudioFileInfo> {
     let mut vec = Vec::new();
     for entry in walkdir::WalkDir::new(root)
                                 .min_depth(1)
-                                .max_depth(2)
+                                .max_depth(1)
                                 .sort_by_file_name() {
         let entry = entry.unwrap();
         if entry.file_type().is_file() {
