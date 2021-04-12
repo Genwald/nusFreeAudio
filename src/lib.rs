@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::path::{Path, PathBuf};
 use core::mem::size_of;
+use arcropolis_api as arc_api;
 #[macro_use]
 extern crate lazy_static;
 
@@ -13,11 +14,6 @@ struct AudioFileInfo {
     name: String,
     size: usize,
     path: PathBuf,
-}
-
-type ArcCallback = extern "C" fn(u64, *mut u8, usize) -> bool;
-extern "C" {
-    fn subscribe_callback_with_size(hash: u64, filesize: u32, extension: *const u8, extension_len: usize, callback: ArcCallback);
 }
 
 lazy_static! {
@@ -88,7 +84,7 @@ fn make_nus3audio(audio_list: Vec<AudioFile>) -> Vec<u8>{
     file_bytes
 }
 
-extern "C" fn nus3_callback(hash: u64, data: *mut u8, max_size: usize) -> bool {
+extern "C" fn nus3_callback(hash: u64, data: *mut u8, max_size: usize) {
     let map = FILE_MAP.lock().unwrap();
     match map.get(&hash) {
         Some(info_vec) => {
@@ -110,16 +106,17 @@ extern "C" fn nus3_callback(hash: u64, data: *mut u8, max_size: usize) -> bool {
                 // because the size calculation doesn't account for removed duplicates
                 let data_slice = unsafe { std::slice::from_raw_parts_mut(data, nus3data.len()) };
                 data_slice.copy_from_slice(&nus3data);
-                true
             }
             else {
                 println!("nus3audio was larger than expected. Actual: {:#x} Expected: {:#x}", nus3data.len(), max_size);
-                false
+                let data_slice = unsafe { std::slice::from_raw_parts_mut(data, max_size) };
+                arc_api::load_original_file(hash, data_slice);
             }
         },
         None => {
             println!("No file matching the hash: {:#x}", hash);
-            false
+            let data_slice = unsafe { std::slice::from_raw_parts_mut(data, max_size) };
+            arc_api::load_original_file(hash, data_slice);
         }
     }
 }
@@ -178,9 +175,7 @@ pub fn main() {
             let arc_path = get_arc_path(path);
             let path_hash = smash::hash40(&arc_path);
             let size = calc_nus3_size(&file_infos);
-            unsafe {
-                subscribe_callback_with_size(path_hash, size as u32, "nus3audio".as_ptr(), "nus3audio".len(), nus3_callback);
-            }
+            arc_api::register_callback(path_hash, size, nus3_callback);
             FILE_MAP.lock().unwrap().insert(path_hash, file_infos);
         }
     }
