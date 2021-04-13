@@ -123,6 +123,8 @@ extern "C" fn nus3_callback(hash: u64, data: *mut u8, max_size: usize) {
 
 fn get_infos(root: &Path) -> Vec<AudioFileInfo> {
     let mut vec = Vec::new();
+    // Sorted so that users have an easy way to depend on file order.
+    // Should this be done differently?
     for entry in walkdir::WalkDir::new(root)
                                 .min_depth(1)
                                 .max_depth(1)
@@ -149,7 +151,7 @@ fn get_infos(root: &Path) -> Vec<AudioFileInfo> {
 
 fn entry_has_extension(entry: &walkdir::DirEntry, ext: &str) -> bool {
     match entry.path().extension() {
-        Some(entry_ext) if entry_ext == ext => true,
+        Some(entry_ext) => entry_ext == ext,
         _ => false
     }
 }
@@ -160,16 +162,16 @@ fn get_arc_path(path: &Path) -> String {
 
 #[skyline::main(name = "nusFreeAudio")]
 pub fn main() {
-    let mut it = walkdir::WalkDir::new(ARC_FOLDER)
+    let mut dir_it = walkdir::WalkDir::new(ARC_FOLDER)
                                 .min_depth(1)
                                 .into_iter();
     loop {
-        let entry = match it.next() {
+        let entry = match dir_it.next() {
             None => break,
             Some(entry) => entry.unwrap(),
         };
         if entry.file_type().is_dir() && entry_has_extension(&entry, "nus3audio") {
-            it.skip_current_dir();
+            dir_it.skip_current_dir();
             let path = entry.path();
             let file_infos = get_infos(path);
             let arc_path = get_arc_path(path);
