@@ -84,7 +84,33 @@ fn make_nus3audio(audio_list: Vec<AudioFile>) -> Vec<u8>{
     file_bytes
 }
 
-extern "C" fn nus3_callback(hash: u64, data: *mut u8, max_size: usize) {
+#[arc_api::stream_callback]
+fn nus3_stream_callback(hash: u64) -> Option<Vec<u8>> {
+    let map = FILE_MAP.lock().unwrap();
+    match map.get(&hash) {
+        Some(info_vec) => {
+            let mut audio_files = Vec::with_capacity(info_vec.len());
+            for value in info_vec.iter().enumerate() {
+                let (idx, info) = value;
+                let file_data = fs::read(&info.path).unwrap();
+                let audio = AudioFile {
+                    id: idx as u32,
+                    name: info.name.clone(),
+                    data: file_data
+                };
+                audio_files.push(audio);
+            }
+            Some(make_nus3audio(audio_files))
+        },
+        None => {
+            println!("No file matching the hash: {:#x}", hash);
+            None
+        }
+    }
+}
+
+#[arc_api::arc_callback]
+fn nus3_callback(hash: u64, data: &mut [u8]) -> Option<usize> {
     let map = FILE_MAP.lock().unwrap();
     match map.get(&hash) {
         Some(info_vec) => {
@@ -100,23 +126,12 @@ extern "C" fn nus3_callback(hash: u64, data: *mut u8, max_size: usize) {
                 audio_files.push(audio);
             }
             let nus3data = make_nus3audio(audio_files);
-
-            if nus3data.len() <= max_size {
-                // nus3data.len() may not equal max_size
-                // because the size calculation doesn't account for removed duplicates
-                let data_slice = unsafe { std::slice::from_raw_parts_mut(data, nus3data.len()) };
-                data_slice.copy_from_slice(&nus3data);
-            }
-            else {
-                println!("nus3audio was larger than expected. Actual: {:#x} Expected: {:#x}", nus3data.len(), max_size);
-                let data_slice = unsafe { std::slice::from_raw_parts_mut(data, max_size) };
-                arc_api::load_original_file(hash, data_slice);
-            }
+            data[..nus3data.len()].copy_from_slice(&nus3data);
+            Some(nus3data.len())
         },
         None => {
             println!("No file matching the hash: {:#x}", hash);
-            let data_slice = unsafe { std::slice::from_raw_parts_mut(data, max_size) };
-            arc_api::load_original_file(hash, data_slice);
+            None
         }
     }
 }
@@ -177,7 +192,13 @@ pub fn main() {
             let arc_path = get_arc_path(path);
             let path_hash = smash::hash40(&arc_path);
             let size = calc_nus3_size(&file_infos);
-            arc_api::register_callback(path_hash, size, nus3_callback);
+            if arc_path.starts_with("stream") {
+                nus3_stream_callback::install(path_hash);
+            }
+            else {
+                nus3_callback::install(path_hash, size);
+            }
+            
             FILE_MAP.lock().unwrap().insert(path_hash, file_infos);
         }
     }
