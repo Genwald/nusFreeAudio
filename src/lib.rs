@@ -183,7 +183,14 @@ pub fn main() {
     loop {
         let entry = match dir_it.next() {
             None => break,
-            Some(entry) => entry.unwrap(),
+            Some(entry) => entry,
+        };
+        let entry = match entry {
+            Err(e) => {
+                println!("nusFreeAudio error: {}", e);
+                continue;
+            },
+            Ok(entry) => entry
         };
         if entry.file_type().is_dir() && entry_has_extension(&entry, "nus3audio") {
             dir_it.skip_current_dir();
