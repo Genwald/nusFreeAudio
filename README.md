@@ -7,7 +7,7 @@ This means that you can make music mods simply by placing a wav file (or any oth
 [Download a release](https://github.com/Genwald/nusFreeAudio/releases/latest) and place the .nro at `sd:/atmosphere/contents/01006A800016E000/romfs/skyline/plugins/libnusFreeAudio.nro`
 ### Dependencies - install these before use
 - [Skyline](https://github.com/skyline-dev/skyline/releases)
-- [Arcropolis](https://github.com/Raytwo/ARCropolis/releases) v1.1.0+ (generally includes Skyline in its releases)
+- [Arcropolis](https://github.com/Raytwo/ARCropolis/releases) v1.1.1+ (generally includes Skyline in its releases)
 ## Usage
 Place audio files at `sd:/atmosphere/contents/01006A800016E000/romfs/nusFreeAudio/[arc path].nus3audio/[files here]`  
 The game appears to support the following formats by default:
