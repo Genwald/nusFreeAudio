@@ -190,16 +190,16 @@ pub fn main() {
             let path = entry.path();
             let file_infos = get_infos(path);
             let arc_path = get_arc_path(path);
-            let path_hash = smash::hash40(&arc_path);
-            let size = calc_nus3_size(&file_infos);
+            let path_hash = arc_api::hash40(&arc_path);
             if arc_path.starts_with("stream") {
                 nus3_stream_callback::install(path_hash);
             }
             else {
+                let size = calc_nus3_size(&file_infos);
                 nus3_callback::install(path_hash, size);
             }
             
-            FILE_MAP.lock().unwrap().insert(path_hash, file_infos);
+            FILE_MAP.lock().unwrap().insert(path_hash.as_u64(), file_infos);
         }
     }
 }
