@@ -147,14 +147,19 @@ fn get_infos(root: &Path) -> Vec<AudioFileInfo> {
         let entry = entry.unwrap();
         if entry.file_type().is_file() {
             let path = entry.path().to_path_buf();
-            let name = match path.file_name() {
-                Some(name) => name,
+            let mut name = match path.file_name() {
+                Some(name) => name.to_string_lossy().to_string(),
                 None => continue
             };
+            // only use file name after '-' so that names and id are not dependant on eachother
+            match name.find('-') {
+                Some(idx) => name = name[idx+1..].to_string(),
+                None => (),
+            }
             let size = entry.metadata().unwrap().len() as usize;
             
             let file_info = AudioFileInfo {
-                name: name.to_string_lossy().to_string(),
+                name,
                 size,
                 path,
             };
